@@ -1,10 +1,12 @@
-const CACHE_NAME = 'radio-cb-v1';
+const CACHE_NAME = 'radio-cb-v2';
 const ASSETS = [
     './',
     './index.html',
     './manifest.json',
     './icons/icon-192.png',
-    './icons/icon-512.png'
+    './icons/icon-512.png',
+    './icons/icon-maskable-192.png',
+    './icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -28,6 +30,14 @@ self.addEventListener('fetch', event => {
 
     // Never cache the audio stream or metadata API
     if (url.pathname.includes('/stream') || url.pathname.includes('/status-json')) {
+        return;
+    }
+
+    // For navigation requests, serve index.html from cache
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            caches.match('./index.html').then(cached => cached || fetch(event.request))
+        );
         return;
     }
 
