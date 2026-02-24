@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Radio CB">
+    <title>Radio CB</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* LOGIN SCREEN */
+        .login-screen {
+            text-align: center;
+            padding: 20px;
+            max-width: 360px;
+            width: 100%;
+        }
+
+        .login-screen .logo {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .login-screen h2 {
+            font-size: 22px;
+            font-weight: 300;
+            margin-bottom: 40px;
+            color: #aaa;
+        }
+
+        .login-field {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .login-field input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #333;
+            border-radius: 12px;
+            background: #16213e;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .login-field input:focus {
+            border-color: #ff6b6b;
+        }
+
+        .login-field input::placeholder {
+            color: #555;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: #ff6b6b;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .login-btn:active {
+            transform: scale(0.97);
+        }
+
+        .login-error {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 14px;
+            min-height: 20px;
+        }
+
+        /* PLAYER SCREEN */
+        .container {
+            text-align: center;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+            display: none;
+        }
+
+        .app-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #ff6b6b;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .cover-container {
+            width: 260px;
+            height: 260px;
+            margin: 0 auto 30px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 40px rgba(255, 107, 107, 0.2);
+            background: #16213e;
+        }
+
+        .cover-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s ease;
+        }
+
+        .song-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 10px;
+        }
+
+        .artist {
+            font-size: 16px;
+            color: #aaa;
+            margin-bottom: 24px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 10px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 16px;
+        }
+
+        .play-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            background: #ff6b6b;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s ease, background 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .play-btn:active {
+            transform: scale(0.92);
+        }
+
+        .play-btn svg {
+            width: 30px;
+            height: 30px;
+            fill: #fff;
+        }
+
+        .play-btn.loading {
+            background: #555;
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .status {
+            font-size: 13px;
+            color: #777;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .volume-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 0 30px;
+        }
+
+        .volume-container svg {
+            width: 18px;
+            height: 18px;
+            fill: #777;
+            flex-shrink: 0;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            max-width: 180px;
+            height: 4px;
+            border-radius: 2px;
+            background: #333;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div class="login-screen" id="loginScreen">
+        <div class="logo">Radio CB</div>
+        <h2>Accesso riservato</h2>
+        <div class="login-field">
+            <input type="password" id="passwordInput" placeholder="Password" autocomplete="off">
+        </div>
+        <button class="login-btn" id="loginBtn">Entra</button>
+        <div class="login-error" id="loginError"></div>
+    </div>
+
+    <!-- PLAYER SCREEN -->
+    <div class="container" id="playerScreen">
+        <div class="app-title">Radio CB</div>
+
+        <div class="cover-container">
+            <img id="coverImage" alt="Cover">
+        </div>
+
+        <div class="song-title" id="songTitle">Radio CB</div>
+        <div class="artist" id="artistName">In caricamento...</div>
+
+        <div class="controls">
+            <button class="play-btn" id="playBtn" aria-label="Play">
+                <svg id="iconPlay" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
+                <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+            </button>
+        </div>
+
+        <div class="status" id="statusText">Pronto</div>
+
+        <div class="volume-container">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.5 4.5 0 0 0 2.5-3.5z"/></svg>
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5zM14 3.23v2.06a8 8 0 0 1 0 13.42v2.06A10 10 0 0 0 14 3.23z"/></svg>
+        </div>
+    </div>
+
+    <script>
+        // --- OBFUSCATED CONFIG ---
+        const _k = 'RadioCB2024';
+        const _d = {
+            s: 'OhUQGRx5bR1eQAVgTwoMGDEjVlldGjsVXlFZcXQdQ0ZGNwAJ',
+            m: 'OhUQGRx5bR1eQAVgTwoMGDEjVlldGjsVXlFZcXQdQ0ZVJhQXRAUwLVweSkc+',
+            c: 'fE4NCgAtMR1ZUVs8TFFYXW0yXFc='
+        };
+        // SHA-256 hash of the password
+        const _h = 'ea9d9e6c5f0ea4f21d4dfa3d8b51c2f264dcffa2e7fc5b68840a7b58ae7fc81d';
+
+        function _x(encoded) {
+            const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+            return Array.from(bytes, (b, i) => String.fromCharCode(b ^ _k.charCodeAt(i % _k.length))).join('');
+        }
+
+        async function _sha256(text) {
+            const data = new TextEncoder().encode(text);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // --- LOGIN ---
+        const loginScreen = document.getElementById('loginScreen');
+        const playerScreen = document.getElementById('playerScreen');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+
+        // Check if already authenticated this session
+        if (sessionStorage.getItem('_auth') === '1') {
+            showPlayer();
+        }
+
+        async function attemptLogin() {
+            const pwd = passwordInput.value;
+            if (!pwd) {
+                loginError.textContent = 'Inserisci la password';
+                return;
+            }
+            const hash = await _sha256(pwd);
+            if (hash === _h) {
+                sessionStorage.setItem('_auth', '1');
+                showPlayer();
+            } else {
+                loginError.textContent = 'Password non valida';
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        }
+
+        loginBtn.addEventListener('click', attemptLogin);
+        passwordInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') attemptLogin();
+        });
+
+        function showPlayer() {
+            loginScreen.style.display = 'none';
+            playerScreen.style.display = 'block';
+            initPlayer();
+        }
+
+        // --- PLAYER ---
+        function initPlayer() {
+            const STREAM_URL = _x(_d.s);
+            const METADATA_URL = _x(_d.m);
+            const FALLBACK_COVER = _x(_d.c);
+
+            const playBtn = document.getElementById('playBtn');
+            const iconPlay = document.getElementById('iconPlay');
+            const iconPause = document.getElementById('iconPause');
+            const statusText = document.getElementById('statusText');
+            const songTitle = document.getElementById('songTitle');
+            const artistName = document.getElementById('artistName');
+            const coverImage = document.getElementById('coverImage');
+            const volumeSlider = document.getElementById('volumeSlider');
+
+            coverImage.src = FALLBACK_COVER;
+
+            let audio = null;
+            let isPlaying = false;
+            let lastTitle = '';
+
+            function createAudio() {
+                audio = new Audio();
+                audio.volume = volumeSlider.value / 100;
+
+                audio.addEventListener('playing', () => {
+                    isPlaying = true;
+                    playBtn.classList.remove('loading');
+                    updateControls();
+                    statusText.textContent = 'IN RIPRODUZIONE';
+                });
+
+                audio.addEventListener('waiting', () => {
+                    playBtn.classList.add('loading');
+                    statusText.textContent = 'BUFFERING...';
+                });
+
+                audio.addEventListener('error', () => {
+                    isPlaying = false;
+                    playBtn.classList.remove('loading');
+                    updateControls();
+                    statusText.textContent = 'ERRORE DI CONNESSIONE';
+                });
+            }
+
+            function updateControls() {
+                iconPlay.style.display = isPlaying ? 'none' : 'block';
+                iconPause.style.display = isPlaying ? 'block' : 'none';
+            }
+
+            async function play() {
+                if (audio) {
+                    audio.pause();
+                    audio.removeAttribute('src');
+                    audio.load();
+                }
+                createAudio();
+                playBtn.classList.add('loading');
+                statusText.textContent = 'CONNESSIONE...';
+                audio.src = STREAM_URL;
+                try {
+                    await audio.play();
+                } catch (e) {
+                    playBtn.classList.remove('loading');
+                    statusText.textContent = 'ERRORE';
+                }
+            }
+
+            function pause() {
+                if (audio) {
+                    audio.pause();
+                    audio.removeAttribute('src');
+                    audio.load();
+                }
+                isPlaying = false;
+                updateControls();
+                statusText.textContent = 'IN PAUSA';
+            }
+
+            playBtn.addEventListener('click', () => {
+                if (isPlaying) {
+                    pause();
+                } else {
+                    play();
+                }
+            });
+
+            volumeSlider.addEventListener('input', () => {
+                if (audio) {
+                    audio.volume = volumeSlider.value / 100;
+                }
+            });
+
+            async function fetchMetadata() {
+                try {
+                    const response = await fetch(METADATA_URL);
+                    const data = await response.json();
+                    const source = data.icestats && data.icestats.source;
+                    if (!source) return;
+
+                    const src = Array.isArray(source) ? source[0] : source;
+                    const rawTitle = src.title || '';
+
+                    if (rawTitle && rawTitle !== lastTitle) {
+                        lastTitle = rawTitle;
+                        const parts = rawTitle.split(' - ');
+                        const artist = parts.length > 1 ? parts[0].trim() : '';
+                        const title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : rawTitle.trim();
+
+                        songTitle.textContent = title || 'Radio CB';
+                        artistName.textContent = artist || '';
+
+                        if (artist && title) {
+                            fetchCover(artist, title);
+                        } else {
+                            coverImage.src = FALLBACK_COVER;
+                        }
+
+                        if ('mediaSession' in navigator) {
+                            navigator.mediaSession.metadata = new MediaMetadata({
+                                title: title,
+                                artist: artist,
+                                album: 'Radio CB',
+                                artwork: [{ src: coverImage.src, sizes: '512x512', type: 'image/png' }]
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // silent fail
+                }
+            }
+
+            async function fetchCover(artist, title) {
+                try {
+                    const query = encodeURIComponent(`${artist} ${title}`);
+                    const resp = await fetch(`https://itunes.apple.com/search?term=${query}&media=music&limit=1`);
+                    const data = await resp.json();
+                    if (data.results && data.results.length > 0) {
+                        const artworkUrl = data.results[0].artworkUrl100.replace('100x100', '600x600');
+                        coverImage.src = artworkUrl;
+                    } else {
+                        coverImage.src = FALLBACK_COVER;
+                    }
+                } catch (e) {
+                    coverImage.src = FALLBACK_COVER;
+                }
+            }
+
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', play);
+                navigator.mediaSession.setActionHandler('pause', pause);
+            }
+
+            setInterval(fetchMetadata, 3000);
+            fetchMetadata();
+        }
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
