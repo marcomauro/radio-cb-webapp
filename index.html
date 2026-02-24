@@ -12,6 +12,41 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <style>
+        /* THEME VARIABLES */
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --text-primary: #fff;
+            --text-secondary: #aaa;
+            --text-muted: #777;
+            --accent: #ff6b6b;
+            --border-color: #333;
+            --placeholder-color: #555;
+            --loading-bg: #555;
+            --slider-track: #333;
+            --cover-shadow: rgba(255, 107, 107, 0.2);
+            --btn-text: #fff;
+            --theme-toggle-bg: rgba(255, 255, 255, 0.1);
+            --theme-toggle-hover: rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f0f2f5;
+            --bg-secondary: #fff;
+            --text-primary: #1a1a2e;
+            --text-secondary: #555;
+            --text-muted: #888;
+            --accent: #e84545;
+            --border-color: #ddd;
+            --placeholder-color: #aaa;
+            --loading-bg: #ccc;
+            --slider-track: #ccc;
+            --cover-shadow: rgba(0, 0, 0, 0.15);
+            --btn-text: #fff;
+            --theme-toggle-bg: rgba(0, 0, 0, 0.08);
+            --theme-toggle-hover: rgba(0, 0, 0, 0.15);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -20,8 +55,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #fff;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -30,7 +65,49 @@
             overflow: hidden;
             -webkit-user-select: none;
             user-select: none;
+            transition: background 0.3s ease, color 0.3s ease;
         }
+
+        /* THEME TOGGLE */
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--theme-toggle-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease, transform 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+            z-index: 100;
+        }
+
+        .theme-toggle:hover {
+            background: var(--theme-toggle-hover);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.9);
+        }
+
+        .theme-toggle svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-primary);
+            transition: fill 0.3s ease;
+        }
+
+        .theme-toggle .icon-sun { display: none; }
+        .theme-toggle .icon-moon { display: block; }
+
+        [data-theme="light"] .theme-toggle .icon-sun { display: block; }
+        [data-theme="light"] .theme-toggle .icon-moon { display: none; }
 
         /* LOGIN SCREEN */
         .login-screen {
@@ -44,7 +121,7 @@
             font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 3px;
-            color: #ff6b6b;
+            color: var(--accent);
             margin-bottom: 10px;
             font-weight: 600;
         }
@@ -53,7 +130,7 @@
             font-size: 22px;
             font-weight: 300;
             margin-bottom: 40px;
-            color: #aaa;
+            color: var(--text-secondary);
         }
 
         .login-field {
@@ -64,21 +141,21 @@
         .login-field input {
             width: 100%;
             padding: 14px 18px;
-            border: 2px solid #333;
+            border: 2px solid var(--border-color);
             border-radius: 12px;
-            background: #16213e;
-            color: #fff;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
             font-size: 16px;
             outline: none;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, background 0.3s ease, color 0.3s ease;
         }
 
         .login-field input:focus {
-            border-color: #ff6b6b;
+            border-color: var(--accent);
         }
 
         .login-field input::placeholder {
-            color: #555;
+            color: var(--placeholder-color);
         }
 
         .login-btn {
@@ -86,8 +163,8 @@
             padding: 14px;
             border: none;
             border-radius: 12px;
-            background: #ff6b6b;
-            color: #fff;
+            background: var(--accent);
+            color: var(--btn-text);
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
@@ -100,7 +177,7 @@
         }
 
         .login-error {
-            color: #ff6b6b;
+            color: var(--accent);
             font-size: 13px;
             margin-top: 14px;
             min-height: 20px;
@@ -119,7 +196,7 @@
             font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 3px;
-            color: #ff6b6b;
+            color: var(--accent);
             margin-bottom: 30px;
             font-weight: 600;
         }
@@ -130,8 +207,9 @@
             margin: 0 auto 30px;
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 8px 40px rgba(255, 107, 107, 0.2);
-            background: #16213e;
+            box-shadow: 0 8px 40px var(--cover-shadow);
+            background: var(--bg-secondary);
+            transition: background 0.3s ease, box-shadow 0.3s ease;
         }
 
         .cover-container img {
@@ -153,7 +231,7 @@
 
         .artist {
             font-size: 16px;
-            color: #aaa;
+            color: var(--text-secondary);
             margin-bottom: 24px;
             white-space: nowrap;
             overflow: hidden;
@@ -174,8 +252,8 @@
             height: 70px;
             border-radius: 50%;
             border: none;
-            background: #ff6b6b;
-            color: #fff;
+            background: var(--accent);
+            color: var(--btn-text);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -191,11 +269,11 @@
         .play-btn svg {
             width: 30px;
             height: 30px;
-            fill: #fff;
+            fill: var(--btn-text);
         }
 
         .play-btn.loading {
-            background: #555;
+            background: var(--loading-bg);
             animation: pulse 1.2s infinite;
         }
 
@@ -206,7 +284,7 @@
 
         .status {
             font-size: 13px;
-            color: #777;
+            color: var(--text-muted);
             letter-spacing: 1px;
             text-transform: uppercase;
         }
@@ -223,7 +301,7 @@
         .volume-container svg {
             width: 18px;
             height: 18px;
-            fill: #777;
+            fill: var(--text-muted);
             flex-shrink: 0;
         }
 
@@ -234,8 +312,9 @@
             max-width: 180px;
             height: 4px;
             border-radius: 2px;
-            background: #333;
+            background: var(--slider-track);
             outline: none;
+            transition: background 0.3s ease;
         }
 
         .volume-slider::-webkit-slider-thumb {
@@ -244,12 +323,18 @@
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #ff6b6b;
+            background: var(--accent);
             cursor: pointer;
         }
     </style>
 </head>
 <body>
+
+    <!-- THEME TOGGLE -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Cambia tema">
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
 
     <!-- LOGIN SCREEN -->
     <div class="login-screen" id="loginScreen">
@@ -290,6 +375,26 @@
     </div>
 
     <script>
+        // --- THEME ---
+        (function initTheme() {
+            const saved = localStorage.getItem('theme');
+            const theme = saved || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.querySelector('meta[name="theme-color"]').setAttribute('content',
+                theme === 'light' ? '#f0f2f5' : '#1a1a2e'
+            );
+        })();
+
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.querySelector('meta[name="theme-color"]').setAttribute('content',
+                next === 'light' ? '#f0f2f5' : '#1a1a2e'
+            );
+        });
+
         // --- OBFUSCATED CONFIG ---
         const _k = 'RadioCB2024';
         const _d = {
