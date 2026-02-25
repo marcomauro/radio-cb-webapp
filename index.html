@@ -458,97 +458,274 @@
 
         // --- PLAYER ---
         function initPlayer() {
-            const STREAM_URL = _x(_d.s);
+            const STREAM_URL   = _x(_d.s);
             const METADATA_URL = _x(_d.m);
             const FALLBACK_COVER = _x(_d.c);
 
-            const playBtn = document.getElementById('playBtn');
-            const iconPlay = document.getElementById('iconPlay');
-            const iconPause = document.getElementById('iconPause');
-            const statusText = document.getElementById('statusText');
-            const songTitle = document.getElementById('songTitle');
-            const artistName = document.getElementById('artistName');
-            const coverImage = document.getElementById('coverImage');
+            const playBtn      = document.getElementById('playBtn');
+            const iconPlay     = document.getElementById('iconPlay');
+            const iconPause    = document.getElementById('iconPause');
+            const statusText   = document.getElementById('statusText');
+            const songTitle    = document.getElementById('songTitle');
+            const artistName   = document.getElementById('artistName');
+            const coverImage   = document.getElementById('coverImage');
             const volumeSlider = document.getElementById('volumeSlider');
 
             coverImage.src = FALLBACK_COVER;
 
-            let audio = null;
-            let isPlaying = false;
+            let audio    = null;
+            let audioGen = 0;   // generation counter — invalidates stale audio events
             let lastTitle = '';
 
+            // ── STATE MACHINE ────────────────────────────────────────────
+            // IDLE → CONNECTING → PLAYING
+            //              ↓           ↓
+            //         BUFFERING    RECOVERING → CIRCUIT_OPEN
+            //              ↓           ↓
+            //           PAUSED      OFFLINE
+            const S = {
+                IDLE:         'idle',
+                CONNECTING:   'connecting',
+                PLAYING:      'playing',
+                BUFFERING:    'buffering',
+                PAUSED:       'paused',
+                RECOVERING:   'recovering',
+                CIRCUIT_OPEN: 'circuit_open',
+                OFFLINE:      'offline'
+            };
+
+            let state = S.IDLE;
+
+            function setState(next) {
+                state = next;
+                const showPause   = next === S.PLAYING   || next === S.BUFFERING;
+                const showLoading = next === S.CONNECTING || next === S.BUFFERING || next === S.RECOVERING;
+                iconPlay.style.display  = showPause ? 'none'  : 'block';
+                iconPause.style.display = showPause ? 'block' : 'none';
+                showLoading ? playBtn.classList.add('loading')
+                            : playBtn.classList.remove('loading');
+            }
+
+            // ── RECOVERY MANAGER ─────────────────────────────────────────
+            const recovery = {
+                count:         0,
+                maxRetries:    10,
+                base:          2000,          // 2 s initial delay
+                ceiling:       60000,         // 60 s max delay
+                circuitPause:  3 * 60 * 1000, // 3 min circuit-open pause
+                _retry:   null,
+                _circuit: null,
+                _tick:    null,
+                _stall:   null,
+
+                cancelAll() {
+                    clearTimeout(this._retry);
+                    clearTimeout(this._circuit);
+                    clearInterval(this._tick);
+                    clearTimeout(this._stall);
+                    this._retry = this._circuit = this._tick = this._stall = null;
+                },
+
+                reset() { this.count = 0; this.cancelAll(); },
+
+                // Exponential backoff with ±10% jitter
+                delay() {
+                    const d = Math.min(this.base * Math.pow(2, this.count), this.ceiling);
+                    return d * (0.9 + Math.random() * 0.2);
+                },
+
+                _startCountdown(totalMs, label) {
+                    clearInterval(this._tick);
+                    let rem = Math.ceil(totalMs / 1000);
+                    const upd = () => { statusText.textContent = label(rem); };
+                    upd();
+                    this._tick = setInterval(() => {
+                        rem--;
+                        if (rem > 0) upd();
+                        else { clearInterval(this._tick); this._tick = null; }
+                    }, 1000);
+                },
+
+                scheduleRetry() {
+                    if (this.count >= this.maxRetries) { this.openCircuit(); return; }
+                    const d = this.delay();
+                    this.count++;
+                    setState(S.RECOVERING);
+                    const n = this.count, max = this.maxRetries;
+                    this._startCountdown(d, r => `RICONNESSIONE ${n}/${max} (${r}s)`);
+                    this._retry = setTimeout(() => {
+                        clearInterval(this._tick); this._tick = null;
+                        if (state === S.RECOVERING) playStream();
+                    }, d);
+                },
+
+                openCircuit() {
+                    setState(S.CIRCUIT_OPEN);
+                    const fmt = s => {
+                        const m = Math.floor(s / 60), r = s % 60;
+                        return m > 0 ? `PAUSA ${m}m ${r}s` : `PAUSA ${r}s`;
+                    };
+                    this._startCountdown(this.circuitPause, fmt);
+                    this._circuit = setTimeout(() => {
+                        clearInterval(this._tick); this._tick = null;
+                        if (state === S.CIRCUIT_OPEN) {
+                            this.count = 0;
+                            navigator.onLine ? playStream()
+                                             : (setState(S.OFFLINE), statusText.textContent = 'OFFLINE');
+                        }
+                    }, this.circuitPause);
+                },
+
+                onSuccess() { this.reset(); },
+
+                onFailure() {
+                    this.cancelAll();
+                    if (!navigator.onLine) {
+                        setState(S.OFFLINE);
+                        statusText.textContent = 'OFFLINE';
+                    } else {
+                        this.scheduleRetry();
+                    }
+                },
+
+                // Stall watchdog: if stuck in CONNECTING/BUFFERING for >20 s → recover
+                startStall() {
+                    clearTimeout(this._stall);
+                    this._stall = setTimeout(() => {
+                        this._stall = null;
+                        if (state === S.BUFFERING || state === S.CONNECTING) this.onFailure();
+                    }, 20000);
+                },
+
+                stopStall() { clearTimeout(this._stall); this._stall = null; }
+            };
+
+            // ── AUDIO LIFECYCLE ──────────────────────────────────────────
+            function destroyAudio() {
+                if (audio) {
+                    audioGen++;              // invalidate all pending events from this element
+                    audio.pause();
+                    audio.removeAttribute('src');
+                    audio.load();
+                    audio = null;
+                }
+            }
+
             function createAudio() {
+                destroyAudio();
+                audioGen++;
+                const myGen = audioGen;      // captured by closures below
+
                 audio = new Audio();
                 audio.volume = volumeSlider.value / 100;
 
                 audio.addEventListener('playing', () => {
-                    isPlaying = true;
-                    playBtn.classList.remove('loading');
-                    updateControls();
+                    if (myGen !== audioGen) return;
+                    recovery.stopStall();
+                    recovery.onSuccess();
+                    setState(S.PLAYING);
                     statusText.textContent = 'IN RIPRODUZIONE';
                 });
 
                 audio.addEventListener('waiting', () => {
-                    playBtn.classList.add('loading');
-                    statusText.textContent = 'BUFFERING...';
+                    if (myGen !== audioGen) return;
+                    if (state === S.PLAYING || state === S.CONNECTING) {
+                        setState(S.BUFFERING);
+                        statusText.textContent = 'BUFFERING...';
+                        recovery.startStall();
+                    }
+                });
+
+                // stalled = browser stopped receiving stream data
+                audio.addEventListener('stalled', () => {
+                    if (myGen !== audioGen) return;
+                    if (state === S.PLAYING || state === S.BUFFERING || state === S.CONNECTING)
+                        recovery.startStall();
+                });
+
+                // ended should never happen on a live stream
+                audio.addEventListener('ended', () => {
+                    if (myGen !== audioGen) return;
+                    if (state === S.PLAYING) recovery.onFailure();
                 });
 
                 audio.addEventListener('error', () => {
-                    isPlaying = false;
-                    playBtn.classList.remove('loading');
-                    updateControls();
-                    statusText.textContent = 'ERRORE DI CONNESSIONE';
+                    if (myGen !== audioGen) return;
+                    if (state !== S.PAUSED && state !== S.IDLE) recovery.onFailure();
                 });
             }
 
-            function updateControls() {
-                iconPlay.style.display = isPlaying ? 'none' : 'block';
-                iconPause.style.display = isPlaying ? 'block' : 'none';
-            }
-
-            async function play() {
-                if (audio) {
-                    audio.pause();
-                    audio.removeAttribute('src');
-                    audio.load();
-                }
+            async function playStream() {
                 createAudio();
-                playBtn.classList.add('loading');
+                const gen = audioGen;
+                setState(S.CONNECTING);
                 statusText.textContent = 'CONNESSIONE...';
                 audio.src = STREAM_URL;
                 try {
                     await audio.play();
                 } catch (e) {
-                    playBtn.classList.remove('loading');
-                    statusText.textContent = 'ERRORE';
+                    if (gen === audioGen && state === S.CONNECTING) recovery.onFailure();
                 }
             }
+
+            function play() { recovery.reset(); playStream(); }
 
             function pause() {
-                if (audio) {
-                    audio.pause();
-                    audio.removeAttribute('src');
-                    audio.load();
-                }
-                isPlaying = false;
-                updateControls();
+                recovery.cancelAll();
+                setState(S.PAUSED);
                 statusText.textContent = 'IN PAUSA';
+                destroyAudio();
             }
 
+            // ── CONTROLS ─────────────────────────────────────────────────
             playBtn.addEventListener('click', () => {
-                if (isPlaying) {
-                    pause();
+                if (state === S.PLAYING  || state === S.BUFFERING   ||
+                    state === S.CONNECTING || state === S.RECOVERING ||
+                    state === S.CIRCUIT_OPEN) {
+                    pause();         // any active state → stop / cancel recovery
                 } else {
-                    play();
+                    play();          // IDLE, PAUSED, OFFLINE → start
                 }
             });
 
             volumeSlider.addEventListener('input', () => {
-                if (audio) {
-                    audio.volume = volumeSlider.value / 100;
+                if (audio) audio.volume = volumeSlider.value / 100;
+            });
+
+            // ── NETWORK EVENTS ────────────────────────────────────────────
+            window.addEventListener('online', () => {
+                if (state === S.OFFLINE   ||
+                    state === S.RECOVERING ||
+                    state === S.CIRCUIT_OPEN) {
+                    recovery.cancelAll();
+                    recovery.count = 0;
+                    setState(S.CONNECTING);
+                    statusText.textContent = 'RETE RIPRISTINATA...';
+                    // Small delay to let the network settle
+                    setTimeout(() => {
+                        if (state === S.CONNECTING) playStream();
+                    }, 1000);
                 }
             });
 
+            window.addEventListener('offline', () => {
+                if (state !== S.IDLE && state !== S.PAUSED) {
+                    recovery.cancelAll();
+                    destroyAudio();
+                    setState(S.OFFLINE);
+                    statusText.textContent = 'OFFLINE';
+                }
+            });
+
+            // ── VISIBILITY CHANGE ─────────────────────────────────────────
+            // When the user returns to the tab, check if audio silently died
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && state === S.PLAYING && audio && audio.paused) {
+                    recovery.onFailure();
+                }
+            });
+
+            // ── METADATA ─────────────────────────────────────────────────
             async function fetchMetadata() {
                 try {
                     const response = await fetch(METADATA_URL);
@@ -563,9 +740,9 @@
                         lastTitle = rawTitle;
                         const parts = rawTitle.split(' - ');
                         const artist = parts.length > 1 ? parts[0].trim() : '';
-                        const title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : rawTitle.trim();
+                        const title  = parts.length > 1 ? parts.slice(1).join(' - ').trim() : rawTitle.trim();
 
-                        songTitle.textContent = title || 'Radio CB';
+                        songTitle.textContent  = title || 'Radio CB';
                         artistName.textContent = artist || '';
 
                         if (artist && title) {
@@ -576,9 +753,9 @@
 
                         if ('mediaSession' in navigator) {
                             navigator.mediaSession.metadata = new MediaMetadata({
-                                title: title,
-                                artist: artist,
-                                album: 'Radio CB',
+                                title:   title,
+                                artist:  artist,
+                                album:   'Radio CB',
                                 artwork: [{ src: coverImage.src, sizes: '512x512', type: 'image/png' }]
                             });
                         }
