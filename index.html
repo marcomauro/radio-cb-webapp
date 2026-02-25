@@ -326,9 +326,206 @@
             background: var(--accent);
             cursor: pointer;
         }
+
+        /* HAMBURGER MENU */
+        .menu-toggle {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: none;
+            background: var(--theme-toggle-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease, transform 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+            z-index: 100;
+        }
+
+        .menu-toggle:hover {
+            background: var(--theme-toggle-hover);
+        }
+
+        .menu-toggle:active {
+            transform: scale(0.9);
+        }
+
+        .menu-toggle svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--text-primary);
+            transition: fill 0.3s ease;
+        }
+
+        /* DROPDOWN MENU */
+        .dropdown-menu {
+            position: fixed;
+            top: 58px;
+            left: 16px;
+            min-width: 160px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 6px 0;
+            z-index: 99;
+            opacity: 0;
+            transform: translateY(-8px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .dropdown-menu button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .dropdown-menu button:hover {
+            background: var(--theme-toggle-hover);
+        }
+
+        .dropdown-menu button svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        /* INFO OVERLAY */
+        .info-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .info-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .info-overlay-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .info-panel {
+            position: relative;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px 28px;
+            max-width: 320px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.92);
+            transition: transform 0.25s ease, background 0.3s ease;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+        }
+
+        .info-overlay.visible .info-panel {
+            transform: scale(1);
+        }
+
+        .info-panel-title {
+            font-size: 20px;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 300;
+            margin-bottom: 12px;
+        }
+
+        .info-panel-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .info-panel-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.8;
+        }
+
+        .info-close-btn {
+            margin-top: 20px;
+            padding: 8px 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .info-close-btn:hover {
+            background: var(--theme-toggle-hover);
+        }
     </style>
 </head>
 <body>
+
+    <!-- HAMBURGER MENU -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+    </button>
+
+    <div class="dropdown-menu" id="dropdownMenu">
+        <button id="menuInfo">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            Info
+        </button>
+    </div>
+
+    <!-- INFO OVERLAY -->
+    <div class="info-overlay" id="infoOverlay">
+        <div class="info-overlay-backdrop" id="infoBackdrop"></div>
+        <div class="info-panel">
+            <div class="info-panel-title">Radio CB</div>
+            <div class="info-panel-desc">Una radio 24h, non stop</div>
+            <div class="info-panel-meta">
+                Versione 1.0<br>
+                Author: marcomauro e Claude Opus 4.6
+            </div>
+            <button class="info-close-btn" id="infoCloseBtn">Chiudi</button>
+        </div>
+    </div>
 
     <!-- THEME TOGGLE -->
     <button class="theme-toggle" id="themeToggle" aria-label="Cambia tema">
@@ -385,6 +582,39 @@
             );
         })();
 
+        // --- HAMBURGER MENU ---
+        const menuToggle = document.getElementById('menuToggle');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        const menuInfo = document.getElementById('menuInfo');
+        const infoOverlay = document.getElementById('infoOverlay');
+        const infoBackdrop = document.getElementById('infoBackdrop');
+        const infoCloseBtn = document.getElementById('infoCloseBtn');
+
+        menuToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle('open');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!dropdownMenu.contains(e.target) && e.target !== menuToggle) {
+                dropdownMenu.classList.remove('open');
+            }
+        });
+
+        menuInfo.addEventListener('click', function() {
+            dropdownMenu.classList.remove('open');
+            infoOverlay.classList.add('visible');
+        });
+
+        infoCloseBtn.addEventListener('click', function() {
+            infoOverlay.classList.remove('visible');
+        });
+
+        infoBackdrop.addEventListener('click', function() {
+            infoOverlay.classList.remove('visible');
+        });
+
+        // --- THEME ---
         document.getElementById('themeToggle').addEventListener('click', function() {
             const current = document.documentElement.getAttribute('data-theme');
             const next = current === 'light' ? 'dark' : 'light';
