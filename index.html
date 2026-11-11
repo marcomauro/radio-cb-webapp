@@ -426,9 +426,11 @@
         .volume-slider:focus-visible { outline-offset: 0; border-radius: 12px; }
 
         /* ── LANDSCAPE / DESKTOP: cover beside the controls ────── */
-        @media (min-width: 640px) and (min-aspect-ratio: 5/4) {
+        /* Any wide-ish window (even a small desktop/PWA window) goes side by side;
+           the cover is sized on the real free height so nothing falls off-screen. */
+        @media (min-width: 460px) and (min-aspect-ratio: 5/4), (max-height: 520px) and (min-aspect-ratio: 1/1) {
             :root {
-                --cover: min(40vw, 58dvh, 440px);
+                --cover: min(40vw, calc(100dvh - var(--topbar-h) - env(safe-area-inset-top) - 64px), 440px);
                 --play: clamp(56px, 9dvh, 72px);
             }
             .player {
@@ -449,6 +451,8 @@
 
         /* Larger screens: a bit more presence for the text */
         @media (min-width: 1024px) and (min-height: 700px) {
+            :root { --cover: min(40vw, calc(100dvh - var(--topbar-h) - 160px), 540px); }
+            .player { max-width: 1100px; }
             .song-title { font-size: 28px; }
             .artist { font-size: 19px; }
             .app-title { font-size: 22px; }
@@ -621,7 +625,7 @@
             <div class="info-panel-title">Radio CB</div>
             <div class="info-panel-desc">Una radio 24h, non stop</div>
             <div class="info-panel-meta">
-                Versione 1.1<br>
+                Versione 1.2<br>
                 Author: marcomauro e Claude Opus 4.6
             </div>
             <button class="info-close-btn" id="infoCloseBtn">Chiudi</button>
