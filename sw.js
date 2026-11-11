@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radio-cb-v3';
+const CACHE_NAME = 'radio-cb-v4';
 const ASSETS = [
     './',
     './index.html',
@@ -33,10 +33,19 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // For navigation requests, serve index.html from cache
+    // Navigation: network-first so a new version published on GitHub Pages
+    // shows up immediately; fall back to the cached page when offline.
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            caches.match('./index.html').then(cached => cached || fetch(event.request))
+            fetch(event.request)
+                .then(resp => {
+                    if (resp && resp.ok) {
+                        const copy = resp.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
+                    }
+                    return resp;
+                })
+                .catch(() => caches.match('./index.html'))
         );
         return;
     }

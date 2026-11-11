@@ -2,17 +2,30 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#1a1a2e">
+    <meta name="color-scheme" content="dark light">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Radio CB">
     <title>Radio CB</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <script>
+        // Apply the theme before first paint (no flash of the wrong theme).
+        // Saved choice wins, otherwise follow the system preference.
+        (function () {
+            var saved = null;
+            try { saved = localStorage.getItem('theme'); } catch (e) {}
+            var theme = saved || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', theme);
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'light' ? '#f0f2f5' : '#1a1a2e');
+        })();
+    </script>
     <style>
-        /* THEME VARIABLES */
+        /* ── THEME ─────────────────────────────────────────────── */
         :root {
             --bg-primary: #1a1a2e;
             --bg-secondary: #16213e;
@@ -23,11 +36,19 @@
             --border-color: #333;
             --placeholder-color: #555;
             --loading-bg: #555;
-            --slider-track: #333;
-            --cover-shadow: rgba(255, 107, 107, 0.2);
+            --slider-track: rgba(255, 255, 255, 0.14);
+            --cover-shadow: rgba(255, 107, 107, 0.18);
             --btn-text: #fff;
-            --theme-toggle-bg: rgba(255, 255, 255, 0.1);
-            --theme-toggle-hover: rgba(255, 255, 255, 0.2);
+            --ghost-bg: rgba(255, 255, 255, 0.08);
+            --ghost-hover: rgba(255, 255, 255, 0.16);
+            --focus-ring: rgba(255, 107, 107, 0.6);
+
+            /* layout tokens */
+            --pad-x: max(20px, env(safe-area-inset-left), env(safe-area-inset-right));
+            --gap: clamp(12px, 2.6dvh, 28px);
+            --cover: min(82vw, 42dvh, 400px);
+            --play: clamp(60px, 9dvh, 76px);
+            --topbar-h: 64px;
         }
 
         [data-theme="light"] {
@@ -40,104 +61,168 @@
             --border-color: #ddd;
             --placeholder-color: #aaa;
             --loading-bg: #ccc;
-            --slider-track: #ccc;
-            --cover-shadow: rgba(0, 0, 0, 0.15);
+            --slider-track: rgba(0, 0, 0, 0.12);
+            --cover-shadow: rgba(0, 0, 0, 0.16);
             --btn-text: #fff;
-            --theme-toggle-bg: rgba(0, 0, 0, 0.08);
-            --theme-toggle-hover: rgba(0, 0, 0, 0.15);
+            --ghost-bg: rgba(0, 0, 0, 0.06);
+            --ghost-hover: rgba(0, 0, 0, 0.12);
+            --focus-ring: rgba(232, 69, 69, 0.5);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body { height: 100%; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
+            height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
             overflow: hidden;
             -webkit-user-select: none;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-font-smoothing: antialiased;
+            touch-action: manipulation;
             transition: background 0.3s ease, color 0.3s ease;
         }
 
-        /* THEME TOGGLE */
-        .theme-toggle {
-            position: fixed;
-            top: 16px;
-            right: 16px;
-            width: 34px;
-            height: 34px;
+        button { font: inherit; color: inherit; }
+
+        :focus { outline: none; }
+        :focus-visible {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 3px;
+        }
+
+        /* ── TOP BAR ───────────────────────────────────────────── */
+        .topbar {
+            flex: none;
+            display: grid;
+            grid-template-columns: 44px 1fr 44px;
+            align-items: center;
+            height: calc(var(--topbar-h) + env(safe-area-inset-top));
+            padding: env(safe-area-inset-top) var(--pad-x) 0;
+            position: relative;
+            z-index: 100;
+        }
+
+        .app-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 300;
+            text-transform: uppercase;
+            color: var(--accent);
+            visibility: hidden;
+        }
+        body.authed .app-title { visibility: visible; }
+
+        .icon-btn {
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             border: none;
-            background: var(--theme-toggle-bg);
-            color: var(--text-primary);
+            background: var(--ghost-bg);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: background 0.2s ease, transform 0.15s ease;
-            -webkit-tap-highlight-color: transparent;
-            z-index: 100;
         }
-
-        .theme-toggle:hover {
-            background: var(--theme-toggle-hover);
-        }
-
-        .theme-toggle:active {
-            transform: scale(0.9);
-        }
-
-        .theme-toggle svg {
-            width: 16px;
-            height: 16px;
+        .icon-btn:active { transform: scale(0.9); }
+        .icon-btn svg {
+            width: 18px;
+            height: 18px;
             fill: var(--text-primary);
             transition: fill 0.3s ease;
         }
 
         .theme-toggle .icon-sun { display: none; }
-        .theme-toggle .icon-moon { display: block; }
-
         [data-theme="light"] .theme-toggle .icon-sun { display: block; }
         [data-theme="light"] .theme-toggle .icon-moon { display: none; }
 
-        /* LOGIN SCREEN */
+        /* ── DROPDOWN MENU ─────────────────────────────────────── */
+        .dropdown-menu {
+            position: absolute;
+            top: calc(env(safe-area-inset-top) + var(--topbar-h) - 6px);
+            left: var(--pad-x);
+            min-width: 170px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 6px 0;
+            opacity: 0;
+            transform: translateY(-8px);
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        .dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            visibility: visible;
+        }
+        .dropdown-menu button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            min-height: 44px;
+            padding: 0 16px;
+            border: none;
+            background: none;
+            font-size: 15px;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .dropdown-menu button svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        /* ── MAIN AREA ─────────────────────────────────────────── */
+        .stage {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            display: flex;
+            padding: 14px var(--pad-x) max(16px, env(safe-area-inset-bottom));
+        }
+        /* margin:auto centres the content but never clips it when space runs out */
+        .stage > * { margin: auto; }
+
+        /* ── LOGIN ─────────────────────────────────────────────── */
         .login-screen {
             text-align: center;
-            padding: 20px;
             max-width: 360px;
             width: 100%;
+            padding-bottom: var(--topbar-h); /* optical centring */
         }
+        body.authed .login-screen { display: none; }
 
         .login-screen .logo {
             font-size: 24px;
             text-transform: uppercase;
-            letter-spacing: 0;
             color: var(--accent);
             margin-bottom: 10px;
             font-weight: 300;
         }
-
         .login-screen h2 {
             font-size: 22px;
             font-weight: 300;
             margin-bottom: 40px;
             color: var(--text-secondary);
         }
-
-        .login-field {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
+        .login-field { margin-bottom: 16px; }
         .login-field input {
             width: 100%;
             padding: 14px 18px;
@@ -145,19 +230,14 @@
             border-radius: 12px;
             background: var(--bg-secondary);
             color: var(--text-primary);
-            font-size: 16px;
+            font-size: 16px; /* ≥16px avoids iOS zoom on focus */
             outline: none;
+            -webkit-user-select: text;
+            user-select: text;
             transition: border-color 0.2s, background 0.3s ease, color 0.3s ease;
         }
-
-        .login-field input:focus {
-            border-color: var(--accent);
-        }
-
-        .login-field input::placeholder {
-            color: var(--placeholder-color);
-        }
-
+        .login-field input:focus { border-color: var(--accent); }
+        .login-field input::placeholder { color: var(--placeholder-color); }
         .login-btn {
             width: 100%;
             padding: 14px;
@@ -168,14 +248,9 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.15s ease, opacity 0.2s;
-            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.15s ease, filter 0.2s;
         }
-
-        .login-btn:active {
-            transform: scale(0.97);
-        }
-
+        .login-btn:active { transform: scale(0.97); }
         .login-error {
             color: var(--accent);
             font-size: 13px;
@@ -183,265 +258,246 @@
             min-height: 20px;
         }
 
-        /* PLAYER SCREEN */
-        .container {
-            text-align: center;
-            padding: 20px;
-            max-width: 400px;
-            width: 100%;
+        /* ── PLAYER ────────────────────────────────────────────── */
+        .player {
             display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--gap);
+            width: 100%;
+            max-width: 440px;
+            text-align: center;
         }
-
-        .app-title {
-            font-size: 24px;
-            text-transform: uppercase;
-            letter-spacing: 0;
-            color: var(--accent);
-            margin-bottom: 30px;
-            font-weight: 300;
-        }
+        body.authed .player { display: flex; }
 
         .cover-container {
-            width: 260px;
-            height: 260px;
-            margin: 0 auto 30px;
+            flex: none;
+            width: var(--cover);
+            height: var(--cover);
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 8px 40px var(--cover-shadow);
+            box-shadow: 0 8px 28px var(--cover-shadow);
             background: var(--bg-secondary);
-            transition: background 0.3s ease, box-shadow 0.3s ease;
+            transition: background 0.3s ease, box-shadow 0.3s ease, border-radius 0.3s ease;
         }
-
+        /* The fallback logo already has its own rounded corners: match them */
+        .cover-container.fallback {
+            border-radius: 18.75%;
+            background: #0e0f14;
+        }
         .cover-container img {
+            display: block;
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.35s ease;
         }
+        .cover-container img.fading { opacity: 0; }
+
+        .meta {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--gap);
+            width: 100%;
+            min-width: 0;
+        }
+
+        .track { width: 100%; min-width: 0; }
 
         .song-title {
-            font-size: 20px;
+            font-size: clamp(18px, 2.6dvh, 22px);
             font-weight: 700;
-            margin-bottom: 6px;
-            white-space: nowrap;
+            line-height: 1.25;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 0 10px;
+            overflow-wrap: anywhere;
         }
-
         .artist {
-            font-size: 16px;
+            font-size: clamp(14px, 2.1dvh, 17px);
             color: var(--text-secondary);
-            margin-bottom: 24px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            padding: 0 10px;
+            min-height: 1.3em;
         }
 
         .controls {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 16px;
+            gap: 12px;
         }
 
         .play-btn {
-            width: 70px;
-            height: 70px;
+            width: var(--play);
+            height: var(--play);
             border-radius: 50%;
             border: none;
             background: var(--accent);
-            color: var(--btn-text);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.15s ease, background 0.2s ease;
-            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.15s ease, background 0.2s ease, filter 0.2s;
         }
-
-        .play-btn:active {
-            transform: scale(0.92);
-        }
-
+        .play-btn:active { transform: scale(0.92); }
         .play-btn svg {
-            width: 30px;
-            height: 30px;
+            width: 42%;
+            height: 42%;
             fill: var(--btn-text);
         }
-
+        .play-btn .icon-play { margin-left: 8%; } /* optical centring of the triangle */
         .play-btn.loading {
             background: var(--loading-bg);
             animation: pulse 1.2s infinite;
         }
-
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
         }
 
         .status {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-muted);
             letter-spacing: 1px;
             text-transform: uppercase;
+            min-height: 1.3em;
         }
 
+        /* Volume */
         .volume-container {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-            padding: 0 30px;
+            gap: 12px;
+            width: 100%;
+            max-width: 260px;
         }
-
+        .volume-container.unsupported { display: none; }
         .volume-container svg {
             width: 18px;
             height: 18px;
             fill: var(--text-muted);
             flex-shrink: 0;
         }
-
         .volume-slider {
+            --val: 80%;
             -webkit-appearance: none;
             appearance: none;
-            width: 100%;
-            max-width: 180px;
+            flex: 1;
+            min-width: 0;
+            height: 24px; /* generous hit area, thin visual track */
+            background: transparent;
+            cursor: pointer;
+        }
+        .volume-slider::-webkit-slider-runnable-track {
             height: 4px;
             border-radius: 2px;
-            background: var(--slider-track);
-            outline: none;
-            transition: background 0.3s ease;
+            background: linear-gradient(to right, var(--accent) var(--val), var(--slider-track) var(--val));
         }
-
+        .volume-slider::-moz-range-track {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(to right, var(--accent) var(--val), var(--slider-track) var(--val));
+        }
         .volume-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             width: 16px;
             height: 16px;
+            margin-top: -6px;
             border-radius: 50%;
+            border: none;
             background: var(--accent);
-            cursor: pointer;
+            transition: transform 0.15s ease;
         }
-
-        /* HAMBURGER MENU */
-        .menu-toggle {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            width: 34px;
-            height: 34px;
+        .volume-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             border: none;
-            background: var(--theme-toggle-bg);
-            color: var(--text-primary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s ease, transform 0.15s ease;
-            -webkit-tap-highlight-color: transparent;
-            z-index: 100;
+            background: var(--accent);
+        }
+        .volume-slider:active::-webkit-slider-thumb { transform: scale(1.2); }
+        .volume-slider:focus-visible { outline-offset: 0; border-radius: 12px; }
+
+        /* ── LANDSCAPE / DESKTOP: cover beside the controls ────── */
+        @media (min-width: 640px) and (min-aspect-ratio: 5/4) {
+            :root {
+                --cover: min(40vw, 58dvh, 440px);
+                --play: clamp(56px, 9dvh, 72px);
+            }
+            .player {
+                flex-direction: row;
+                justify-content: center;
+                gap: clamp(28px, 5vw, 64px);
+                max-width: 960px;
+                text-align: left;
+            }
+            .meta {
+                align-items: flex-start;
+                flex: 1;
+                max-width: 400px;
+            }
+            .controls { flex-direction: row; gap: 16px; }
+            .volume-container { justify-content: flex-start; }
         }
 
-        .menu-toggle:hover {
-            background: var(--theme-toggle-hover);
+        /* Larger screens: a bit more presence for the text */
+        @media (min-width: 1024px) and (min-height: 700px) {
+            .song-title { font-size: 28px; }
+            .artist { font-size: 19px; }
+            .app-title { font-size: 22px; }
         }
 
-        .menu-toggle:active {
-            transform: scale(0.9);
+        /* Phones in landscape: very little height, compact chrome */
+        @media (orientation: landscape) and (max-height: 500px) {
+            :root {
+                --topbar-h: 52px;
+                --gap: 10px;
+                --cover: min(40vw, calc(100dvh - var(--topbar-h) - env(safe-area-inset-top) - 40px));
+            }
+            .icon-btn { width: 40px; height: 40px; }
+            .topbar { grid-template-columns: 40px 1fr 40px; }
+            .app-title { font-size: 17px; }
+            .login-screen { padding-bottom: 0; }
+            .login-screen h2 { margin-bottom: 20px; }
         }
 
-        .menu-toggle svg {
-            width: 16px;
-            height: 16px;
-            fill: var(--text-primary);
-            transition: fill 0.3s ease;
+        /* ── HOVER (only on devices that really hover) ─────────── */
+        @media (hover: hover) and (pointer: fine) {
+            .icon-btn:hover,
+            .dropdown-menu button:hover,
+            .info-close-btn:hover { background: var(--ghost-hover); }
+            .play-btn:hover, .login-btn:hover { filter: brightness(1.08); }
+            .volume-slider:hover::-webkit-slider-thumb { transform: scale(1.2); }
         }
 
-        /* DROPDOWN MENU */
-        .dropdown-menu {
-            position: fixed;
-            top: 58px;
-            left: 16px;
-            min-width: 160px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 6px 0;
-            z-index: 99;
-            opacity: 0;
-            transform: translateY(-8px);
-            pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        }
-
-        .dropdown-menu.open {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-
-        .dropdown-menu button {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-            padding: 10px 16px;
-            border: none;
-            background: none;
-            color: var(--text-primary);
-            font-size: 14px;
-            cursor: pointer;
-            transition: background 0.15s ease;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .dropdown-menu button:hover {
-            background: var(--theme-toggle-hover);
-        }
-
-        .dropdown-menu button svg {
-            width: 16px;
-            height: 16px;
-            fill: var(--text-secondary);
-            flex-shrink: 0;
-        }
-
-        /* INFO OVERLAY */
+        /* ── INFO OVERLAY ──────────────────────────────────────── */
         .info-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
             z-index: 200;
             opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s ease;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s;
         }
-
-        .info-overlay.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
+        .info-overlay.visible { opacity: 1; visibility: visible; }
         .info-overlay-backdrop {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             background: rgba(0, 0, 0, 0.5);
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
         }
-
         .info-panel {
             position: relative;
             background: var(--bg-secondary);
@@ -449,17 +505,13 @@
             border-radius: 16px;
             padding: 32px 28px;
             max-width: 320px;
-            width: 90%;
+            width: 100%;
             text-align: center;
             transform: scale(0.92);
             transition: transform 0.25s ease, background 0.3s ease;
             box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
         }
-
-        .info-overlay.visible .info-panel {
-            transform: scale(1);
-        }
-
+        .info-overlay.visible .info-panel { transform: scale(1); }
         .info-panel-title {
             font-size: 20px;
             text-transform: uppercase;
@@ -467,121 +519,116 @@
             font-weight: 300;
             margin-bottom: 12px;
         }
-
         .info-panel-desc {
             font-size: 14px;
             color: var(--text-secondary);
             line-height: 1.6;
             margin-bottom: 20px;
         }
-
         .info-panel-meta {
             font-size: 12px;
             color: var(--text-muted);
             line-height: 1.8;
         }
-
         .info-close-btn {
             margin-top: 20px;
-            padding: 8px 24px;
+            min-height: 40px;
+            padding: 0 24px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             background: none;
-            color: var(--text-primary);
             font-size: 13px;
             cursor: pointer;
             transition: background 0.15s ease;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        .info-close-btn:hover {
-            background: var(--theme-toggle-hover);
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- HAMBURGER MENU -->
-    <button class="menu-toggle" id="menuToggle" aria-label="Menu">
-        <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
-    </button>
-
-    <div class="dropdown-menu" id="dropdownMenu">
-        <button id="menuInfo">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-            Info
+    <!-- TOP BAR -->
+    <header class="topbar">
+        <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Menu" aria-haspopup="true" aria-expanded="false" aria-controls="dropdownMenu">
+            <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
         </button>
-    </div>
+
+        <div class="app-title">Radio CB</div>
+
+        <button class="icon-btn theme-toggle" id="themeToggle" aria-label="Cambia tema">
+            <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+
+        <div class="dropdown-menu" id="dropdownMenu" role="menu">
+            <button id="menuInfo" role="menuitem">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                Info
+            </button>
+        </div>
+    </header>
+
+    <main class="stage">
+        <!-- LOGIN SCREEN -->
+        <div class="login-screen" id="loginScreen">
+            <div class="logo">Radio CB</div>
+            <h2>Accesso riservato</h2>
+            <div class="login-field">
+                <input type="password" id="passwordInput" placeholder="Password" autocomplete="off" aria-label="Password" enterkeyhint="go">
+            </div>
+            <button class="login-btn" id="loginBtn">Entra</button>
+            <div class="login-error" id="loginError" role="alert"></div>
+        </div>
+
+        <!-- PLAYER SCREEN -->
+        <div class="player" id="playerScreen">
+            <div class="cover-container fallback" id="coverContainer">
+                <img id="coverImage" alt="Copertina" draggable="false">
+            </div>
+
+            <div class="meta">
+                <div class="track">
+                    <div class="song-title" id="songTitle">Radio CB</div>
+                    <div class="artist" id="artistName">In caricamento...</div>
+                </div>
+
+                <div class="controls">
+                    <button class="play-btn" id="playBtn" aria-label="Riproduci">
+                        <svg id="iconPlay" class="icon-play" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
+                        <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+                    </button>
+                    <div class="status" id="statusText" aria-live="polite">Pronto</div>
+                </div>
+
+                <div class="volume-container" id="volumeContainer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.5 4.5 0 0 0 2.5-3.5z"/></svg>
+                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80" aria-label="Volume">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5zM14 3.23v2.06a8 8 0 0 1 0 13.42v2.06A10 10 0 0 0 14 3.23z"/></svg>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <!-- INFO OVERLAY -->
-    <div class="info-overlay" id="infoOverlay">
+    <div class="info-overlay" id="infoOverlay" role="dialog" aria-modal="true" aria-label="Informazioni">
         <div class="info-overlay-backdrop" id="infoBackdrop"></div>
         <div class="info-panel">
             <div class="info-panel-title">Radio CB</div>
             <div class="info-panel-desc">Una radio 24h, non stop</div>
             <div class="info-panel-meta">
-                Versione 1.0<br>
+                Versione 1.1<br>
                 Author: marcomauro e Claude Opus 4.6
             </div>
             <button class="info-close-btn" id="infoCloseBtn">Chiudi</button>
         </div>
     </div>
 
-    <!-- THEME TOGGLE -->
-    <button class="theme-toggle" id="themeToggle" aria-label="Cambia tema">
-        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
-        <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    </button>
-
-    <!-- LOGIN SCREEN -->
-    <div class="login-screen" id="loginScreen">
-        <div class="logo">Radio CB</div>
-        <h2>Accesso riservato</h2>
-        <div class="login-field">
-            <input type="password" id="passwordInput" placeholder="Password" autocomplete="off">
-        </div>
-        <button class="login-btn" id="loginBtn">Entra</button>
-        <div class="login-error" id="loginError"></div>
-    </div>
-
-    <!-- PLAYER SCREEN -->
-    <div class="container" id="playerScreen">
-        <div class="app-title">Radio CB</div>
-
-        <div class="cover-container">
-            <img id="coverImage" alt="Cover">
-        </div>
-
-        <div class="song-title" id="songTitle">Radio CB</div>
-        <div class="artist" id="artistName">In caricamento...</div>
-
-        <div class="controls">
-            <button class="play-btn" id="playBtn" aria-label="Play">
-                <svg id="iconPlay" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
-                <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
-            </button>
-        </div>
-
-        <div class="status" id="statusText">Pronto</div>
-
-        <div class="volume-container">
-            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.5 4.5 0 0 0 2.5-3.5z"/></svg>
-            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
-            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5zM14 3.23v2.06a8 8 0 0 1 0 13.42v2.06A10 10 0 0 0 14 3.23z"/></svg>
-        </div>
-    </div>
-
     <script>
-        // --- THEME ---
-        (function initTheme() {
-            const saved = localStorage.getItem('theme');
-            const theme = saved || 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-            document.querySelector('meta[name="theme-color"]').setAttribute('content',
-                theme === 'light' ? '#f0f2f5' : '#1a1a2e'
-            );
-        })();
-
         // --- HAMBURGER MENU ---
         const menuToggle = document.getElementById('menuToggle');
         const dropdownMenu = document.getElementById('dropdownMenu');
@@ -590,28 +637,41 @@
         const infoBackdrop = document.getElementById('infoBackdrop');
         const infoCloseBtn = document.getElementById('infoCloseBtn');
 
+        function setMenu(open) {
+            dropdownMenu.classList.toggle('open', open);
+            menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function openInfo() {
+            setMenu(false);
+            infoOverlay.classList.add('visible');
+            infoCloseBtn.focus({ preventScroll: true });
+        }
+
+        function closeInfo() {
+            infoOverlay.classList.remove('visible');
+        }
+
         menuToggle.addEventListener('click', function(e) {
             e.stopPropagation();
-            dropdownMenu.classList.toggle('open');
+            setMenu(!dropdownMenu.classList.contains('open'));
         });
 
         document.addEventListener('click', function(e) {
-            if (!dropdownMenu.contains(e.target) && e.target !== menuToggle) {
-                dropdownMenu.classList.remove('open');
+            if (!dropdownMenu.contains(e.target) && !menuToggle.contains(e.target)) {
+                setMenu(false);
             }
         });
 
-        menuInfo.addEventListener('click', function() {
-            dropdownMenu.classList.remove('open');
-            infoOverlay.classList.add('visible');
-        });
+        menuInfo.addEventListener('click', openInfo);
+        infoCloseBtn.addEventListener('click', closeInfo);
+        infoBackdrop.addEventListener('click', closeInfo);
 
-        infoCloseBtn.addEventListener('click', function() {
-            infoOverlay.classList.remove('visible');
-        });
-
-        infoBackdrop.addEventListener('click', function() {
-            infoOverlay.classList.remove('visible');
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                setMenu(false);
+                closeInfo();
+            }
         });
 
         // --- THEME ---
@@ -619,7 +679,7 @@
             const current = document.documentElement.getAttribute('data-theme');
             const next = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('theme', next);
+            try { localStorage.setItem('theme', next); } catch (e) {}
             document.querySelector('meta[name="theme-color"]').setAttribute('content',
                 next === 'light' ? '#f0f2f5' : '#1a1a2e'
             );
@@ -646,8 +706,6 @@
         }
 
         // --- LOGIN ---
-        const loginScreen = document.getElementById('loginScreen');
-        const playerScreen = document.getElementById('playerScreen');
         const passwordInput = document.getElementById('passwordInput');
         const loginBtn = document.getElementById('loginBtn');
         const loginError = document.getElementById('loginError');
@@ -655,6 +713,9 @@
         // Check if already authenticated this session
         if (sessionStorage.getItem('_auth') === '1') {
             showPlayer();
+        } else if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+            // Desktop: focus the field right away (on mobile it would pop up the keyboard)
+            passwordInput.focus();
         }
 
         async function attemptLogin() {
@@ -666,6 +727,7 @@
             const hash = await _sha256(pwd);
             if (hash === _h) {
                 sessionStorage.setItem('_auth', '1');
+                passwordInput.blur();
                 showPlayer();
             } else {
                 loginError.textContent = 'Password non valida';
@@ -680,8 +742,7 @@
         });
 
         function showPlayer() {
-            loginScreen.style.display = 'none';
-            playerScreen.style.display = 'block';
+            document.body.classList.add('authed');
             initPlayer();
         }
 
@@ -691,20 +752,76 @@
             const METADATA_URL = _x(_d.m);
             const FALLBACK_COVER = './icons/icon-512.png';
 
-            const playBtn      = document.getElementById('playBtn');
-            const iconPlay     = document.getElementById('iconPlay');
-            const iconPause    = document.getElementById('iconPause');
-            const statusText   = document.getElementById('statusText');
-            const songTitle    = document.getElementById('songTitle');
-            const artistName   = document.getElementById('artistName');
-            const coverImage   = document.getElementById('coverImage');
-            const volumeSlider = document.getElementById('volumeSlider');
+            const playBtn         = document.getElementById('playBtn');
+            const iconPlay        = document.getElementById('iconPlay');
+            const iconPause       = document.getElementById('iconPause');
+            const statusText      = document.getElementById('statusText');
+            const songTitle       = document.getElementById('songTitle');
+            const artistName      = document.getElementById('artistName');
+            const coverImage      = document.getElementById('coverImage');
+            const coverContainer  = document.getElementById('coverContainer');
+            const volumeSlider    = document.getElementById('volumeSlider');
+            const volumeContainer = document.getElementById('volumeContainer');
 
             coverImage.src = FALLBACK_COVER;
 
             let audio    = null;
             let audioGen = 0;   // generation counter — invalidates stale audio events
             let lastTitle = '';
+            let currentMeta = { title: 'Radio CB', artist: '' };
+
+            // ── COVER ────────────────────────────────────────────────────
+            // Preload the new image, then cross-fade it in (no flicker or
+            // half-loaded images). Falls back to the logo on any error.
+            let coverReq = 0;
+            function setCover(url) {
+                const req = ++coverReq;
+                const isFallback = url === FALLBACK_COVER;
+                const pre = new Image();
+                pre.onload = () => {
+                    if (req !== coverReq) return;
+                    coverImage.classList.add('fading');
+                    setTimeout(() => {
+                        if (req !== coverReq) return;
+                        coverImage.src = url;
+                        coverContainer.classList.toggle('fallback', isFallback);
+                        coverImage.classList.remove('fading');
+                        updateMediaSession();
+                    }, 200);
+                };
+                pre.onerror = () => {
+                    if (req === coverReq && !isFallback) setCover(FALLBACK_COVER);
+                };
+                pre.src = url;
+            }
+
+            function updateMediaSession() {
+                if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+                const isFallback = coverContainer.classList.contains('fallback');
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title:   currentMeta.title,
+                    artist:  currentMeta.artist,
+                    album:   'Radio CB',
+                    artwork: [{
+                        src: coverImage.src,
+                        sizes: isFallback ? '512x512' : '600x600',
+                        type: isFallback ? 'image/png' : 'image/jpeg'
+                    }]
+                });
+            }
+
+            // ── VOLUME ───────────────────────────────────────────────────
+            // iOS ignores audio.volume (hardware buttons only): hide the slider there.
+            (function detectVolumeSupport() {
+                const probe = new Audio();
+                probe.volume = 0.5;
+                if (probe.volume !== 0.5) volumeContainer.classList.add('unsupported');
+            })();
+
+            function paintVolume() {
+                volumeSlider.style.setProperty('--val', volumeSlider.value + '%');
+            }
+            paintVolume();
 
             // ── STATE MACHINE ────────────────────────────────────────────
             // IDLE → CONNECTING → PLAYING
@@ -731,8 +848,12 @@
                 const showLoading = next === S.CONNECTING || next === S.BUFFERING || next === S.RECOVERING;
                 iconPlay.style.display  = showPause ? 'none'  : 'block';
                 iconPause.style.display = showPause ? 'block' : 'none';
+                playBtn.setAttribute('aria-label', showPause ? 'Pausa' : 'Riproduci');
                 showLoading ? playBtn.classList.add('loading')
                             : playBtn.classList.remove('loading');
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = showPause ? 'playing' : 'paused';
+                }
             }
 
             // ── RECOVERY MANAGER ─────────────────────────────────────────
@@ -906,8 +1027,7 @@
                 destroyAudio();
             }
 
-            // ── CONTROLS ─────────────────────────────────────────────────
-            playBtn.addEventListener('click', () => {
+            function togglePlay() {
                 if (state === S.PLAYING  || state === S.BUFFERING   ||
                     state === S.CONNECTING || state === S.RECOVERING ||
                     state === S.CIRCUIT_OPEN) {
@@ -915,10 +1035,31 @@
                 } else {
                     play();          // IDLE, PAUSED, OFFLINE → start
                 }
-            });
+            }
+
+            // ── CONTROLS ─────────────────────────────────────────────────
+            playBtn.addEventListener('click', togglePlay);
 
             volumeSlider.addEventListener('input', () => {
+                paintVolume();
                 if (audio) audio.volume = volumeSlider.value / 100;
+            });
+
+            // Desktop keyboard shortcuts: Space / K = play-pause, ↑ ↓ = volume
+            document.addEventListener('keydown', e => {
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+                if (infoOverlay.classList.contains('visible')) return;
+                const t = e.target;
+                const onControl = t && (t.tagName === 'INPUT' || t.tagName === 'BUTTON');
+                if ((e.code === 'Space' && !onControl) || e.key === 'k' || e.key === 'K') {
+                    e.preventDefault();
+                    togglePlay();
+                } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && t !== volumeSlider) {
+                    e.preventDefault();
+                    const step = e.key === 'ArrowUp' ? 5 : -5;
+                    volumeSlider.value = Math.max(0, Math.min(100, +volumeSlider.value + step));
+                    volumeSlider.dispatchEvent(new Event('input'));
+                }
             });
 
             // ── NETWORK EVENTS ────────────────────────────────────────────
@@ -973,21 +1114,17 @@
 
                         songTitle.textContent  = title || 'Radio CB';
                         artistName.textContent = artist || '';
+                        songTitle.title  = title || '';
+                        artistName.title = artist || '';
+                        currentMeta = { title: title, artist: artist };
+                        document.title = title ? `${title}${artist ? ' · ' + artist : ''} — Radio CB` : 'Radio CB';
 
                         if (artist && title) {
                             fetchCover(artist, title);
                         } else {
-                            coverImage.src = FALLBACK_COVER;
+                            setCover(FALLBACK_COVER);
                         }
-
-                        if ('mediaSession' in navigator) {
-                            navigator.mediaSession.metadata = new MediaMetadata({
-                                title:   title,
-                                artist:  artist,
-                                album:   'Radio CB',
-                                artwork: [{ src: coverImage.src, sizes: '512x512', type: 'image/png' }]
-                            });
-                        }
+                        updateMediaSession();
                     }
                 } catch (e) {
                     // silent fail
@@ -1000,19 +1137,19 @@
                     const resp = await fetch(`https://itunes.apple.com/search?term=${query}&media=music&limit=1`);
                     const data = await resp.json();
                     if (data.results && data.results.length > 0) {
-                        const artworkUrl = data.results[0].artworkUrl100.replace('100x100', '600x600');
-                        coverImage.src = artworkUrl;
+                        setCover(data.results[0].artworkUrl100.replace('100x100', '600x600'));
                     } else {
-                        coverImage.src = FALLBACK_COVER;
+                        setCover(FALLBACK_COVER);
                     }
                 } catch (e) {
-                    coverImage.src = FALLBACK_COVER;
+                    setCover(FALLBACK_COVER);
                 }
             }
 
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.setActionHandler('play', play);
                 navigator.mediaSession.setActionHandler('pause', pause);
+                try { navigator.mediaSession.setActionHandler('stop', pause); } catch (e) {}
             }
 
             setInterval(fetchMetadata, 3000);
